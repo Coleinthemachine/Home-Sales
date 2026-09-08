@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Sales &middot; $1M+ Main Line &amp; Western Suburbs</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #dfe3e8;
+    --text: #14181f;
+    --muted: #616b7a;
+    --accent: #1f5f4b;
+    --accent-soft: #e7f2ee;
+    --on-accent: #ffffff;
+    --warn: #8a5300;
+    --warn-soft: #fdf1dd;
+    --error: #8c2f2f;
+    --error-soft: #fbeaea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151a;
+      --panel: #1a1f26;
+      --border: #2c333d;
+      --text: #e8ebef;
+      --muted: #97a2b0;
+      --accent: #6ec9a8;
+      --accent-soft: #16302a;
+      --on-accent: #0d211b;
+      --warn: #e0b169;
+      --warn-soft: #33280f;
+      --error: #e88b8b;
+      --error-soft: #341c1c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+  header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 22px; color: var(--muted); font-size: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .stat .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat .value { font-size: 20px; font-weight: 600; margin-top: 4px; }
+  form.filters {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 20px;
+  }
+  form.filters label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 4px; }
+  input, select, button {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px;
+  }
+  button { background: var(--accent); color: var(--on-accent); border-color: transparent; cursor: pointer; font-weight: 600; }
+  td a, .source-msg a { color: var(--accent); }
+  button:hover { filter: brightness(1.08); }
+  a.button-link {
+    text-decoration: none; padding: 8px 12px; border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); background: var(--bg);
+  }
+  .table-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; min-width: 860px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--accent-soft); }
+  .price { font-weight: 650; white-space: nowrap; }
+  .addr { font-weight: 550; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .tag {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid transparent; white-space: nowrap;
+  }
+  .empty { padding: 44px 20px; text-align: center; color: var(--muted); }
+  .sources { margin-top: 26px; }
+  .sources h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .source-row {
+    display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap;
+    padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel); margin-bottom: 8px;
+  }
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
+  .badge.ok { background: var(--accent-soft); color: var(--accent); }
+  .badge.blocked, .badge.misconfigured { background: var(--warn-soft); color: var(--warn); }
+  .badge.error { background: var(--error-soft); color: var(--error); }
+  .source-msg { color: var(--muted); font-size: 13px; flex: 1 1 340px; }
+  footer { margin-top: 30px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>$1M+ Home Sales</h1>
+    <p>
+      Chester, Montgomery and Delaware counties, PA &middot; Radnor Township tracked separately
+      {% if last_run and last_run.finished_at %}
+        &middot; last collected {{ last_run.finished_at[:16].replace('T', ' ') }} UTC
+      {% endif %}
+    </p>
+  </header>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="label">Matching sales</div>
+      <div class="value">{{ sales|length }}{% if sales|length == 500 %}+{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Median price</div>
+      <div class="value">{{ median|money if median else '--' }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Total volume</div>
+      <div class="value">{{ volume|money }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Tracked all-time</div>
+      <div class="value">{{ total_tracked }}</div>
+    </div>
+  </section>
+
+  <form class="filters" method="get" action="/">
+    <label>Area
+      <select name="area">
+        <option value="">All areas</option>
+        {% for name in areas %}
+          <option value="{{ name }}" {% if filters.area == name %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Last N days
+      <input type="number" name="days" min="1" max="3650" value="{{ filters.days }}" style="width:110px">
+    </label>
+    <label>Min price
+      <input type="number" name="min_price" min="0" step="50000" value="{{ filters.min_price }}" style="width:140px">
+    </label>
+    <label>Search
+      <input type="search" name="q" placeholder="address, town, buyer" value="{{ filters.search or '' }}">
+    </label>
+    <button type="submit">Apply</button>
+    <a class="button-link" href="/export.csv?{{ request.query_string.decode() }}">Export CSV</a>
+  </form>
+
+  <div class="table-scroll">
+    {% if sales %}
+    <table>
+      <thead>
+        <tr>
+          <th>Sale date</th>
+          <th>Price</th>
+          <th>Property</th>
+          <th>Area</th>
+          <th>Details</th>
+          <th>Parties</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sale in sales %}
+        <tr>
+          <td class="sub">{{ sale.sale_date|prettydate }}</td>
+          <td class="price">{{ sale.price|money }}</td>
+          <td>
+            <div class="addr">{{ sale.display_address }}</div>
+            <div class="sub">
+              {{ sale.municipality or '' }}{% if sale.municipality and sale.county %}, {% endif %}
+              {% if sale.county %}{{ sale.county }} County{% endif %}
+              {{ sale.zip_code or '' }}
+            </div>
+          </td>
+          <td>{% if sale.area %}<span class="tag">{{ sale.area }}</span>{% endif %}</td>
+          <td class="sub">
+            {% if sale.beds %}{{ sale.beds|int }} bd{% endif %}
+            {% if sale.baths %} &middot; {{ sale.baths }} ba{% endif %}
+            {% if sale.sqft %} &middot; {{ '{:,}'.format(sale.sqft|int) }} sqft{% endif %}
+            {% if sale.lot_acres %} &middot; {{ sale.lot_acres }} ac{% endif %}
+            {% if sale.year_built %}<br>built {{ sale.year_built|int }}{% endif %}
+          </td>
+          <td class="sub">
+            {% if sale.buyer %}<div>&rarr; {{ sale.buyer }}</div>{% endif %}
+            {% if sale.seller %}<div>&larr; {{ sale.seller }}</div>{% endif %}
+          </td>
+          <td class="sub">
+            {% if sale.source_url %}
+              <a href="{{ sale.source_url }}" rel="noopener noreferrer" target="_blank">{{ sale.source }}</a>
+            {% else %}{{ sale.source }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+      <p><strong>No sales match these filters.</strong></p>
+      <p>If you haven't collected yet, run <code>python -m home_sales run</code>.<br>
+      If a source below is misconfigured, its endpoint needs wiring up &mdash; see
+      <code>python -m home_sales discover &lt;arcgis-url&gt;</code>.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if source_status %}
+  <section class="sources">
+    <h2>Source health</h2>
+    {% for source in source_status %}
+    <div class="source-row">
+      <span class="badge {{ source.status }}">{{ source.status }}</span>
+      <strong>{{ source.source }}</strong>
+      <span class="sub">fetched {{ source.fetched }} &middot; kept {{ source.kept }}</span>
+      {% if source.message %}<span class="source-msg">{{ source.message }}</span>{% endif %}
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <footer>
+    Data from county public records and licensed APIs. Prices are as reported by the source and may
+    include non-arm's-length transfers.
+  </footer>
+</div>
+</body>
+</html>

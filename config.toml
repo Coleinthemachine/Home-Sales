@@ -1,0 +1,237 @@
+# This file is tracked in git on purpose -- it holds no secrets. API keys are
+# referenced as ${VAR_NAME} and read from the environment at run time.
+
+[filters]
+min_price = 1000000
+# How far back each run looks. Weekly runs with a 45-day window tolerate
+# county recording lag and a few missed runs without leaving gaps.
+lookback_days = 45
+# Sources report deed vs. settlement dates; same property within this many days
+# is treated as one transaction.
+dedupe_window_days = 14
+
+[storage]
+database = "data/home_sales.db"
+
+[fetching]
+# Identify yourself honestly. Public-records offices are far more tolerant of a
+# crawler they can contact than an anonymous one.
+user_agent = "home-sales-bot/0.1 (+personal research; contact: you@example.com)"
+contact_email = "you@example.com"
+request_delay_seconds = 1.5
+request_timeout_seconds = 30
+max_retries = 3
+respect_robots = true
+
+
+# ---------------------------------------------------------------------------
+# Target areas. A sale matches if it satisfies ANY signal in an area block.
+# Areas that list municipalities or ZIPs are treated as sub-county areas and are
+# matched first, so a Radnor sale is labeled "Radnor Township", not "Delaware
+# County".
+# ---------------------------------------------------------------------------
+
+[[areas]]
+name = "Radnor Township"
+counties = ["Delaware"]
+municipalities = [
+  "Radnor", "Radnor Township", "Wayne", "Villanova", "St Davids", "Saint Davids",
+  "Rosemont", "Bryn Mawr", "Garrett Hill", "Ithan", "Strafford",
+]
+zips = ["19087", "19085", "19010", "19301"]
+
+[[areas]]
+name = "Chester County"
+counties = ["Chester"]
+
+[[areas]]
+name = "Montgomery County"
+counties = ["Montgomery", "Montgomery County", "Montco"]
+
+[[areas]]
+name = "Delaware County"
+counties = ["Delaware", "Delaware County", "Delco"]
+
+
+# ---------------------------------------------------------------------------
+# Sources. `rank` breaks ties when two sources describe the same sale: the
+# higher rank wins on conflicting fields. County records are authoritative on
+# price/date/parties, so rank them above APIs and well above news.
+#
+# The ArcGIS service_url values below are PLACEHOLDERS. Find the real ones with:
+#     python -m home_sales discover https://<county-gis-host>/arcgis/rest/services
+# then re-run discover against the specific layer URL to get field suggestions.
+# ---------------------------------------------------------------------------
+
+[sources.chester_county]
+type = "arcgis"
+enabled = false
+rank = 90
+county = "Chester"
+service_url = "https://SET-ME/arcgis/rest/services/Parcels/FeatureServer/0"
+price_field = "SALE_PRICE"
+date_field = "SALE_DATE"
+date_literal = "date"       # date | timestamp | string | epoch_ms
+return_geometry = false
+
+[sources.chester_county.field_map]
+address = "PROP_ADDRESS"
+municipality = "MUNICIPALITY"
+zip_code = "PROP_ZIP"
+parcel_id = "PARCEL_ID"
+buyer = "GRANTEE"
+seller = "GRANTOR"
+
+
+[sources.montgomery_county]
+type = "arcgis"
+enabled = false
+rank = 90
+county = "Montgomery"
+service_url = "https://SET-ME/arcgis/rest/services/Parcels/FeatureServer/0"
+price_field = "SALE_PRICE"
+date_field = "SALE_DATE"
+date_literal = "date"
+
+[sources.montgomery_county.field_map]
+address = "SITUS_ADDRESS"
+municipality = "MUNI_NAME"
+zip_code = "SITUS_ZIP"
+parcel_id = "PARCEL_NO"
+buyer = "GRANTEE"
+seller = "GRANTOR"
+
+
+[sources.delaware_county]
+type = "arcgis"
+enabled = false
+rank = 90
+county = "Delaware"
+service_url = "https://SET-ME/arcgis/rest/services/Parcels/FeatureServer/0"
+price_field = "SALE_PRICE"
+date_field = "SALE_DATE"
+date_literal = "date"
+
+[sources.delaware_county.field_map]
+address = "PROPERTY_ADDRESS"
+municipality = "MUNICIPALITY"
+zip_code = "ZIP"
+parcel_id = "FOLIO"
+buyer = "GRANTEE"
+seller = "GRANTOR"
+
+
+# --- Licensed APIs -------------------------------------------------------
+# Generic JSON adapter. Check the provider's current docs for the exact
+# endpoint, parameter names and response shape, then adjust below.
+# Enable only after setting the API key environment variable.
+
+[sources.rentcast]
+type = "json_api"
+enabled = false
+rank = 60
+url = "https://api.rentcast.io/v1/listings/sale"
+records_path = ""            # response is a bare array; use e.g. "data" if wrapped
+paginate = "offset"
+page_param = "offset"
+size_param = "limit"
+page_size = 500
+max_pages = 10
+
+[sources.rentcast.headers]
+"X-Api-Key" = "${RENTCAST_API_KEY}"
+
+[sources.rentcast.params]
+state = "PA"
+city = "Wayne"
+status = "Sold"
+daysOld = "{lookback_days}"
+
+[sources.rentcast.field_map]
+address = "formattedAddress"
+price = "lastSalePrice"
+sale_date = "lastSaleDate"
+municipality = "city"
+zip_code = "zipCode"
+county = "county"
+beds = "bedrooms"
+baths = "bathrooms"
+sqft = "squareFootage"
+lot_acres = "lotSize"
+year_built = "yearBuilt"
+property_type = "propertyType"
+latitude = "latitude"
+longitude = "longitude"
+
+
+[sources.attom]
+type = "json_api"
+enabled = false
+rank = 65
+url = "https://api.gateway.attomdata.com/propertyapi/v1.0.0/sale/snapshot"
+records_path = "property"
+paginate = "page"
+page_param = "page"
+size_param = "pagesize"
+page_size = 100
+page_start = 1
+max_pages = 20
+
+[sources.attom.headers]
+apikey = "${ATTOM_API_KEY}"
+Accept = "application/json"
+
+[sources.attom.params]
+geoid = "SET-ME"             # ATTOM geography id for the county
+minsaleamt = "{min_price}"
+startsalesearchdate = "{since}"
+
+[sources.attom.field_map]
+address = "address.line1"
+price = "sale.amount.saleamt"
+sale_date = "sale.salesearchdate"
+municipality = "address.locality"
+zip_code = "address.postal1"
+county = "area.countrysecsubd"
+sqft = "building.size.livingsize"
+year_built = "summary.yearbuilt"
+property_type = "summary.proptype"
+latitude = "location.latitude"
+longitude = "location.longitude"
+
+
+# --- Local press ---------------------------------------------------------
+# Best-effort extraction from prose. Ranked low so county records override it.
+
+[sources.local_news]
+type = "news_rss"
+enabled = false
+rank = 10
+feeds = [
+  # Add local outlets that cover high-end sales, e.g. Main Line Times,
+  # Philadelphia Business Journal residential real estate, Patch town feeds.
+  "https://SET-ME/feed",
+]
+municipalities = ["Villanova", "Gladwyne", "Haverford", "Devon", "Berwyn", "Malvern"]
+
+
+# --- Generic HTML tables -------------------------------------------------
+# For county or municipal pages that publish transfers as an HTML table.
+# Requests obey robots.txt; sites that disallow crawling (Zillow, Redfin,
+# Realtor.com) will be reported as "blocked" rather than scraped.
+
+[sources.example_html]
+type = "html_table"
+enabled = false
+rank = 40
+county = "Chester"
+url = "https://SET-ME/property-transfers?page={page}"
+row_selector = "table.transfers tbody tr"
+max_pages = 5
+page_start = 1
+
+[sources.example_html.cell_map]
+address = "td:nth-child(1)"
+sale_date = "td:nth-child(2)"
+price = "td:nth-child(3)"
+municipality = "td:nth-child(4)"

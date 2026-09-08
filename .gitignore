@@ -1,0 +1,11 @@
+# config.toml is tracked on purpose: it holds no secrets (API keys are read
+# from environment variables) and the weekly workflow needs it.
+
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+data/*.db-wal
+data/*.db-shm

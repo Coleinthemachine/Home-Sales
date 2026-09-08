@@ -1,0 +1,57 @@
+name: Weekly collection
+
+on:
+  schedule:
+    # Mondays at 11:00 UTC (~6-7am Eastern), after weekend deed recordings post.
+    - cron: "0 11 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-collection
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Collect sales
+        env:
+          RENTCAST_API_KEY: ${{ secrets.RENTCAST_API_KEY }}
+          ATTOM_API_KEY: ${{ secrets.ATTOM_API_KEY }}
+        # The database carries dedupe history, so a source failing this week
+        # must not fail the job and lose the rest of the run's results.
+        continue-on-error: true
+        run: python -m home_sales run
+
+      - name: Export CSV snapshot
+        run: |
+          mkdir -p exports
+          python -m home_sales export --days 365 -o exports/last-365-days.csv
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-sales-${{ github.run_number }}
+          path: |
+            exports/last-365-days.csv
+            data/home_sales.db
+          retention-days: 90
+
+      - name: Commit updated database
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/home_sales.db exports/last-365-days.csv
+          git diff --staged --quiet || git commit -m "Weekly collection $(date -u +%Y-%m-%d)"
+          git push
