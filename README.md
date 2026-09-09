@@ -21,21 +21,45 @@ ones rather than shipping guesses that silently rot.
 
 See [Wiring up a county](#wiring-up-a-county) — it takes a few minutes per county.
 
-## Setup
+## Quick start
+
+**1. Install** (Python 3.11+):
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+git clone https://github.com/Coleinthemachine/Home-Sales.git
+cd Home-Sales
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Then edit `config.toml`: set `user_agent` and `contact_email` to something that
-identifies you. Public records offices are far more tolerant of a crawler they
-can contact than an anonymous one.
+**2. Confirm it runs.** This should print the source list and exit cleanly:
+
+```bash
+python -m home_sales sources
+```
+
+**3. Identify yourself.** In `config.toml`, set `user_agent` and `contact_email`
+under `[fetching]` to something real. Public records offices are far more
+tolerant of a crawler they can contact than an anonymous one.
+
+**4. Wire up at least one county** — see the next section. Nothing is collected
+until you do; every source ships `enabled = false`.
+
+**5. Collect and view:**
+
+```bash
+python -m home_sales run
+python -m home_sales serve      # then open http://127.0.0.1:5000
+```
+
+Step 4 is the only part that takes real effort, and it's a one-time setup.
 
 ## Wiring up a county
 
-Find the county's ArcGIS REST root (search "<county> PA GIS open data" or
-"<county> arcgis rest services"), then walk it:
+Each county publishes its parcel data as an ArcGIS service; you need to find the
+current URL and tell the bot which columns hold price and sale date. `config.toml`
+lists candidate starting points for all three counties — try each with
+`discover` and keep whichever answers. Then walk down:
 
 ```bash
 # 1. List services

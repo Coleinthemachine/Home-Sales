@@ -61,6 +61,26 @@ counties = ["Delaware", "Delaware County", "Delco"]
 # The ArcGIS service_url values below are PLACEHOLDERS. Find the real ones with:
 #     python -m home_sales discover https://<county-gis-host>/arcgis/rest/services
 # then re-run discover against the specific layer URL to get field suggestions.
+#
+# Candidate starting points, UNVERIFIED -- try each with `discover` and keep
+# whichever answers. County portals move, so if none respond, search
+# "<county> county pa gis open data" and look for an ArcGIS Hub site or a
+# "rest/services" URL.
+#
+#   Chester:     https://arcgis.chesco.org/arcgis/rest/services
+#                https://gis.chesco.org/arcgis/rest/services
+#                https://data-chesco.opendata.arcgis.com
+#   Montgomery:  https://gis.montcopa.org/arcgis/rest/services
+#                https://data-montcopa.opendata.arcgis.com
+#   Delaware:    https://gis.delcopa.gov/arcgis/rest/services
+#                https://data-delcopa.opendata.arcgis.com
+#
+# Statewide fallback: PASDA (https://www.pasda.psu.edu) publishes PA parcel
+# data, including layers hosted as ArcGIS services.
+#
+# Look for a layer named Parcels, Assessment, Property or Deed Transfers. What
+# you need is a sale price and a sale/transfer date column; `discover` will tell
+# you whether the layer has them.
 # ---------------------------------------------------------------------------
 
 [sources.chester_county]
